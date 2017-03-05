@@ -3,17 +3,19 @@ import logging
 
 from PIL import Image
 
-import steg
+from steg import steg
 
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "ERROR"))
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
-infile = '../images/halle.png'
+infile = 'images/halle.png'
 
-outfile = '../images/halle_out.png'
+outfile = 'images/halle_out.png'
+
 
 # Message to be encoded into image
-message = 'lol balls'
+with open('text/sonnets.txt', 'r') as myfile:
+   message=myfile.read()
 
 # Convert to Steg-image
 with Image.open(infile) as im:
