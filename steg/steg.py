@@ -19,6 +19,12 @@ def message_to_bits(message):
     # Append any necessary 0 bits at the end to make the length divisible by 24. This ensures our message can be
     # evenly divided by 3, 4 and 8, which is helpful when dealing with 3 and 4 band images, and bytes.
     message_bits += [0b0] * (24 - (len(message_bits) % 24))
+
+    if not message_bits.endswith('0b00000000'):
+        logger.error('Unable to convert message to bits with terminator.')
+        raise IOError('Unable to convert message to bits with terminator.')
+    else:
+        logger.debug('Binary message: ' + message_bits.bin)
     # Convert to an easily consumable BitStream
     return ConstBitStream(message_bits)
 
@@ -64,6 +70,7 @@ def convert_to_stego_image(image, message):
     for new_pixel in grouper(updated_bytes, num_bands, 0):
         new_pixel_data.append(new_pixel)
 
+    logger.info("Inserted message into the image.")
     return new_pixel_data
 
 
@@ -94,10 +101,12 @@ def convert_from_stego_bytes(container_bytes):
     container_bytes = iter(container_bytes)
 
     # Need to get the LSB of each container byte, since it may be part of our message
-    while not all_LSBs.endswith('0b00000000'):
+    while not (all_LSBs.endswith('0b00000000') and len(all_LSBs) % 8 == 0):
         pixel_byte = next(container_bytes)
         bit = (pixel_byte & 0x1)
         all_LSBs += [bit]
+
+    logger.debug('All LSBs gathered: ' + all_LSBs.bin)
 
     # Find the 0-byte terminator we set when creating the image.
     # This moves the pos pointer to where the 0-byte starts
