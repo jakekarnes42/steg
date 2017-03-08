@@ -1,2 +1,2 @@
 Pillow>=3.4.2
-bitstring
+bitarray=0.8.1

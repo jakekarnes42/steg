@@ -5,6 +5,9 @@ from PIL import Image
 
 from steg import steg
 
+import time
+start_time = time.time()
+
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
@@ -12,10 +15,9 @@ infile = 'images/halle.png'
 
 outfile = 'images/halle_out.png'
 
-
 # Message to be encoded into image
 with open('text/sonnets.txt', 'r') as myfile:
-   message=myfile.read()
+    message = myfile.read()
 
 # Convert to Steg-image
 with Image.open(infile) as im:
@@ -39,3 +41,5 @@ with Image.open(outfile) as im:
     decoded_message = steg.convert_from_stego_image(im)
 
     print(decoded_message)
+
+print("--- %s seconds ---" % (time.time() - start_time))
