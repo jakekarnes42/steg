@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-null_byte = 8 * bitarray('0')
+ENDIAN = 'big'
 
 
 def message_to_bits(message):
@@ -15,21 +15,23 @@ def message_to_bits(message):
     # convert to UTF-8 bytes
     message_bytes = message.encode(encoding='UTF-8')
     # Get the bits into a more accessible object
-    message_bits = bitarray()
+    message_bits = bitarray(endian=ENDIAN)
     message_bits.frombytes(message_bytes)
-    # Append 0-byte at the end as a terminator
-    message_bits.extend(null_byte)
-    # Append any necessary 0 bits at the end to make the length divisible by 24. This ensures our message can be
-    # evenly divided by 3, 4 and 8, which is helpful when dealing with 3 and 4 band images, and bytes.
-    message_bits.extend((24 - (message_bits.length() % 24)) * bitarray('0'))
 
-    if not message_bits[-8:] == null_byte:
-        logger.error('Unable to convert message to bits with terminator.')
-        raise IOError('Unable to convert message to bits with terminator.')
-    else:
-        logger.debug('Binary message: ' + message_bits.to01())
-    # Convert to an easily consumable BitStream
-    return message_bits
+    num_message_bits = message_bits.length()
+    logger.debug('The message is %s bits long', num_message_bits)
+
+    # Create a 64 bitarray to hold the data length
+    length_bits = bitarray(endian=ENDIAN)
+    length_bits.frombytes(num_message_bits.to_bytes(8, byteorder=ENDIAN))
+    logger.debug('message_length_bits: %s', length_bits.to01())
+
+    # Create final bitarray that is the length + the message
+    complete_bits = bitarray(endian=ENDIAN)
+    complete_bits.extend(length_bits)
+    complete_bits.extend(message_bits)
+
+    return complete_bits
 
 
 def image_can_fit_message(image, message):
@@ -48,7 +50,7 @@ def image_can_fit_message(image, message):
     # Convert the message into bits
     message_bits = message_to_bits(message)
     num_message_bits = message_bits.length()
-    logger.debug('The message is %s bits long', num_message_bits)
+    logger.info('The message is %s bits long', num_message_bits)
 
     # We can update one bit (the LSB) for each band of each pixel
     return num_message_bits <= (num_bands * num_pixels)
@@ -80,15 +82,16 @@ def convert_to_stego_image(image, message):
 def convert_to_stego_bytes(container_bytes, message_bits):
     """Converts the container bytes into stego bytes by updating its bytes' LSBs with the message bits"""
 
-    # Reverse message_bits for easier popping
-    message_bits.reverse()
+    index = 0
+    num_message_bits = message_bits.length()
     for container_byte in container_bytes:
-        # If we're already consumed the stream, return the byte unaltered.
-        if message_bits.length() <= 0:
+        # If we're already read all the bits, return the byte unaltered.
+        if index >= num_message_bits:
             yield container_byte
         else:
             # Get the next bit in the message
-            message_bit = message_bits.pop()
+            message_bit = message_bits[index]
+            index += 1
             # Update the container byte's LSB to be equal to our message's bit
             stego_byte = (container_byte & ~1) | message_bit
             yield stego_byte
@@ -101,29 +104,29 @@ def convert_from_stego_image(image):
 
 def convert_from_stego_bytes(container_bytes):
     """Extracts the message out of the container bytes, or raises an IOError if no message could be found"""
-    all_LSBs = bitarray()
+
     # Convert it to an iterator just to be sure that we can call next on it to get each byte
     # This is safe if container_bytes is already an iterator.
     container_bytes = iter(container_bytes)
 
-    # Need to get the LSB of each container byte, since it may be part of our message
-    while not (all_LSBs[-8:] == null_byte and all_LSBs.length() % 8 == 0):
+    # Get the first 64 bits, which will tell us how many bytes to read.
+    message_length_bits = bitarray(64, endian=ENDIAN)
+    for index in range(64):
         pixel_byte = next(container_bytes)
         bit = (pixel_byte & 0x1)
-        all_LSBs += [bit]
+        message_length_bits[index] = bit
 
-    logger.debug('All LSBs gathered: ' + all_LSBs.to01())
+    # Convert bits into an integer
+    logger.debug('message_length_bits: %s', message_length_bits.to01())
+    message_length = int.from_bytes(message_length_bits.tobytes(), byteorder=ENDIAN)
+    logger.debug('Expecting message to be %s bits long', message_length)
 
-    # Find the 0-byte terminator we set when creating the image.
-    terminator_pos = [pos for pos in all_LSBs.itersearch(null_byte) if pos % 8 == 0]
-
-    # Make sure that we found our terminator.
-    if len(terminator_pos) == 0:
-        logger.error('Unable to find terminator. This may not be a stego image.')
-        raise IOError('Unable to find terminator. This may not be a stego image.')
-
-    # Get all the bits up to where the terminator starts
-    message_bits = all_LSBs[:terminator_pos[0]]
+    # Read message_length number of bits into our bit array.
+    message_bits = bitarray(message_length, endian=ENDIAN)
+    for index in range(message_length):
+        pixel_byte = next(container_bytes)
+        bit = (pixel_byte & 0x1)
+        message_bits[index] = bit
 
     num_message_bits = message_bits.length()
     logger.debug('The message is %s bits long', num_message_bits)

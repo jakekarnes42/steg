@@ -17,7 +17,11 @@ outfile = 'images/halle_out.png'
 
 # Message to be encoded into image
 with open('text/sonnets.txt', 'r') as myfile:
-    message = myfile.read()
+    sonnets = myfile.read()
+with open('text/shakespeare-hamlet-25.txt', 'r') as myfile:
+    hamlet = myfile.read()
+
+message = sonnets + hamlet
 
 # Convert to Steg-image
 with Image.open(infile) as im:
