@@ -44,6 +44,6 @@ with Image.open(outfile) as im:
 
     decoded_message = steg.convert_from_stego_image(im)
 
-    print(decoded_message)
+    print(decoded_message.decode(encoding="UTF-8"))
 
 print("--- %s seconds ---" % (time.time() - start_time))

@@ -1,6 +1,35 @@
 # Steg Project
 This is an exploration into Steganography using Python.
 
+## Command Line Interface
+First, run the setuptools to prepare the executable.
+```
+sudo -H pip install --editable .
+```
+
+### Reading and writing plain text
+Text can be embedded through stdin, and terminated with CTRL+D
+```
+steg conceal - tests/images/halle.png shakey_halle.png
+This is the text I want to hide in my image.
+```
+It can then be read back:
+```
+steg reveal shakey_halle.png -
+This is the text I want to hide in my image.
+```
+
+### Reading and writing files
+Files can be handled in a similar fashion. The following embeddeds all the works of Shakespeare (compressed) into an image:
+```
+steg conceal tests/text/shakespeare_all.bz2 tests/images/halle.png shakey_halle.png
+```
+It can then be extracted back out:
+```
+steg reveal shakey_halle.png shakespeare_extracted.bz2
+```
+
+
 ## Dev Env:
     Ubuntu 16.04 LTS
 
@@ -13,5 +42,9 @@ This is an exploration into Steganography using Python.
         sudo apt install libtiff5-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.5-dev tk8.5-dev python-tk
 
 ## Project Dependencies:
-    pip install Pillow
-    pip install bitstring
+If unable to setuptools or the requirements.txt for some reason:
+```
+pip install Pillow
+pip install bitarray
+pip install Click
+```

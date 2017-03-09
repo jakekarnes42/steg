@@ -12,8 +12,13 @@ ENDIAN = 'big'
 
 def message_to_bits(message):
     """Gets a BitStream from the input message string"""
-    # convert to UTF-8 bytes
-    message_bytes = message.encode(encoding='UTF-8')
+
+    # If not already bytes, convert to UTF-8 bytes
+    if not isinstance(message, (bytes, bytearray)):
+        message_bytes = message.encode(encoding='UTF-8')
+    else:
+        message_bytes = message
+
     # Get the bits into a more accessible object
     message_bits = bitarray(endian=ENDIAN)
     message_bits.frombytes(message_bytes)
@@ -103,7 +108,7 @@ def convert_from_stego_image(image):
 
 
 def convert_from_stego_bytes(container_bytes):
-    """Extracts the message out of the container bytes, or raises an IOError if no message could be found"""
+    """Extracts the message (as bytes) out of the container bytes"""
 
     # Convert it to an iterator just to be sure that we can call next on it to get each byte
     # This is safe if container_bytes is already an iterator.
@@ -131,8 +136,8 @@ def convert_from_stego_bytes(container_bytes):
     num_message_bits = message_bits.length()
     logger.debug('The message is %s bits long', num_message_bits)
 
-    # Convert back to a string
-    message = message_bits.tobytes().decode(encoding='UTF-8')
+    # Convert back to bytes
+    message = message_bits.tobytes()
 
     return message
 
