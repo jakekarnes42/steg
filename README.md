@@ -29,6 +29,16 @@ It can then be extracted back out:
 steg reveal shakey_halle.png shakespeare_extracted.bz2
 ```
 
+### Fun with pipes
+Since the CLI reads from standard input, data can be piped through other utilies which perform other transformations. The following encrypts and compresses the text "this is some text" and conceals it in an image.
+```
+echo this is some text | gzip | gpg -c --passphrase my_password | steg conceal - tests/images/halle.png shakey_halle.png
+```
+To recover the plain text, execute the following:
+```
+steg reveal shakey_halle.png - | gpg -d -q --passphrase my_password | gzip -d
+```
+
 
 ## Dev Env:
     Ubuntu 16.04 LTS
