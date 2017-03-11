@@ -41,9 +41,9 @@ def message_to_bits(message):
 
 def image_can_fit_message(image, message):
     """Returns whether or not the given image can accommodate the given message"""
+
     # Get the number of bands per pixel. This is how many bytes are used to represent each pixel.
     # For example, an RGBA pixel will have 4 bands, giving us four pixels to update.
-
     pixel_data = image.getdata()
     num_bands = pixel_data.bands
     logger.debug('Found %s bands.', num_bands)
@@ -86,20 +86,17 @@ def convert_to_stego_image(image, message):
 
 def convert_to_stego_bytes(container_bytes, message_bits):
     """Converts the container bytes into stego bytes by updating its bytes' LSBs with the message bits"""
+    container_bytes = iter(container_bytes)
 
-    index = 0
-    num_message_bits = message_bits.length()
-    for container_byte in container_bytes:
-        # If we're already read all the bits, return the byte unaltered.
-        if index >= num_message_bits:
-            yield container_byte
-        else:
-            # Get the next bit in the message
-            message_bit = message_bits[index]
-            index += 1
-            # Update the container byte's LSB to be equal to our message's bit
-            stego_byte = (container_byte & ~1) | message_bit
-            yield stego_byte
+    # Insert each message bit into the LSB of a container byte
+    for message_bit in iter(message_bits):
+        container_byte = next(container_bytes)
+        # Update the container byte's LSB to be equal to our message's bit
+        stego_byte = (container_byte & ~1) | message_bit
+        yield stego_byte
+
+    # Now that we're out of message bits, just return the rest of the container bytes as-is
+    yield from container_bytes
 
 
 def convert_from_stego_image(image):
