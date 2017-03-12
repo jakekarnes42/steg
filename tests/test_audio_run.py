@@ -25,10 +25,8 @@ def run():
     out_formats = steg.LOSSLESS_AUDIO
 
     for out_format in out_formats:
-        if test_convert(message, out_format):
-            print(out_format + " - PASS")
-        else:
-            raise AssertionError("Format: " + out_format + " was unsuccessful!")
+        assert test_convert(message, out_format), "Format: " + out_format + " was unsuccessful!"
+        print(out_format + " - PASS")
 
     print("--- %s seconds ---" % (time.time() - start_time))
 
