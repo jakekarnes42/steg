@@ -1,6 +1,21 @@
 # Steg Project
 This is an exploration into Steganography using Python. Messages can be hidden within audio or image files.
 
+## Supported formats
+Many image/audio formats should work as input files. The actual decoding is delegated to the [Pillow](https://pillow.readthedocs.io/en/3.4.x/handbook/image-file-formats.html) library for images, and [ffmpeg](https://www.ffmpeg.org/ffmpeg-formats.html) for audio. Any of their input formats should be acceptable. 
+
+That being said, only lossless output formats can be utilized. If lossy compression were used, the least significant bits (LSBs) where the message is stored could be squashed. 
+
+### Supported image output formats:
+```
+"bmp", "im", "j2k", "pbm", "pcx", "pgm", "ppm", "png", "tiff", "tif", "webp" 
+```
+
+### Supported audio output formats:
+```
+"aiff", "ast", "au", "caf", "f32be", "f32le", "f64be", "f64le", "flac", "ircam", "s16be", "s16le", "s24be", "s24le", "s32be", "s32le", "smjpeg", "sox", "u16be", "u16le", "u24be", "u24le", "u32be","u32le", "voc", "w64", "wav", "wv"
+```
+
 ## Command Line Interface
 First, run the setuptools to prepare the executable.
 ```
