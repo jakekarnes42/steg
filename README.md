@@ -1,5 +1,5 @@
 # Steg Project
-This is an exploration into Steganography using Python.
+This is an exploration into Steganography using Python. Messages can be hidden within audio or image files.
 
 ## Command Line Interface
 First, run the setuptools to prepare the executable.
@@ -20,7 +20,7 @@ This is the text I want to hide in my image.
 ```
 
 ### Reading and writing files
-Files can be handled in a similar fashion. The following embeddeds all the works of Shakespeare (compressed) into an image:
+Files can be handled in a similar fashion. The following embeds all the works of Shakespeare (compressed) into an image:
 ```
 steg conceal tests/text/shakespeare_all.bz2 tests/images/halle.png shakey_halle.png
 ```
@@ -39,6 +39,17 @@ To recover the plain text, execute the following:
 steg reveal shakey_halle.png - | gpg -d -q --passphrase my_password | gzip -d
 ```
 
+### Audio files supported as well
+All of the above examples work equally well with audio files as well. Here's the previous example using .wav files
+```
+echo this is some text | gzip | gpg -c --passphrase my_password | steg conceal - tests/audio/bach_standard.wav bach_stego.wav
+```
+To recover the plain text, execute the following:
+```
+steg reveal bach_stego.wav - | gpg -d -q --passphrase my_password | gzip -d
+```
+
+
 
 ## Dev Env:
     Ubuntu 16.04 LTS
@@ -51,10 +62,14 @@ steg reveal shakey_halle.png - | gpg -d -q --passphrase my_password | gzip -d
     Pillow Imaging Dependencies
         sudo apt install libtiff5-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.5-dev tk8.5-dev python-tk
 
+    Pydub Audio Dependencies
+        sudo apt install ffmpeg libavcodec-extra
+
 ## Project Dependencies:
 If unable to setuptools or the requirements.txt for some reason:
 ```
 pip install Pillow
 pip install bitarray
 pip install Click
+pip install pydub
 ```
