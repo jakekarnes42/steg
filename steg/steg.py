@@ -1,13 +1,15 @@
 from __future__ import print_function
-from itertools import zip_longest
-
+from itertools import zip_longest, chain
+import sys
 from bitarray import bitarray
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-ENDIAN = 'big'
+ENDIAN = sys.byteorder
+# In little endian format, the LSB is the first bit. In big endian format, the LSB is the last bit
+LSB_INDEX = 0 if ENDIAN == 'little' else -1
 
 
 def message_to_bits(message):
@@ -74,49 +76,48 @@ def convert_to_stego_image(image, message):
     # Will write our updated pixel data into this holder
     new_pixel_data = list()
     # Convert each of the old pixels into a stego pixel
-    updated_bytes = convert_to_stego_bytes(_image_to_byte_stream(old_pixel_data), message_bits)
+    updated_bytes = convert_to_stego_samples(_image_to_sample_stream(old_pixel_data), message_bits)
 
     # Fill the new pixel data with the updated pixels
-    for new_pixel in _grouper(updated_bytes, num_bands, 0):
+    for new_pixel in _samples_to_pixels(updated_bytes, num_bands, 0):
         new_pixel_data.append(new_pixel)
 
     logger.info("Inserted message into the image.")
     return new_pixel_data
 
 
-def convert_to_stego_bytes(container_bytes, message_bits):
-    """Converts the container bytes into stego bytes by updating its bytes' LSBs with the message bits"""
-    container_bytes = iter(container_bytes)
+def convert_to_stego_samples(container_samples, message_bits):
+    """Converts the container samples into stego samples by updating its samples' LSBs with the message bits"""
+    container_samples = iter(container_samples)
 
-    # Insert each message bit into the LSB of a container byte
+    # Insert each message bit into the LSB of a container sample
     for message_bit in iter(message_bits):
-        container_byte = next(container_bytes)
-        # Update the container byte's LSB to be equal to our message's bit
-        stego_byte = (container_byte & ~1) | message_bit
-        yield stego_byte
+        container_sample = next(container_samples)
+        # Update the container samples's LSB to be equal to our message's bit
+        container_sample[LSB_INDEX] = message_bit
+        yield container_sample
 
-    # Now that we're out of message bits, just return the rest of the container bytes as-is
-    yield from container_bytes
+    # Now that we're out of message bits, just return the rest of the container samples as-is
+    yield from container_samples
 
 
 def convert_from_stego_image(image):
     """Gets the message out of the image, or raises an IOError if no message could be found"""
-    return convert_from_stego_bytes(_image_to_byte_stream(image.getdata()))
+    return convert_from_stego_samples(_image_to_sample_stream(image.getdata()))
 
 
-def convert_from_stego_bytes(container_bytes):
-    """Extracts the message (as bytes) out of the container bytes"""
+def convert_from_stego_samples(container_samples):
+    """Extracts the message (as bytes) out of the container samples"""
 
-    # Convert it to an iterator just to be sure that we can call next on it to get each byte
-    # This is safe if container_bytes is already an iterator.
-    container_bytes = iter(container_bytes)
+    # Convert it to an iterator just to be sure that we can call next on it to get each sample
+    # This is safe if container_samples is already an iterator.
+    container_samples = iter(container_samples)
 
     # Get the first 64 bits, which will tell us how many bytes to read.
     message_length_bits = bitarray(64, endian=ENDIAN)
     for index in range(64):
-        pixel_byte = next(container_bytes)
-        bit = (pixel_byte & 0x1)
-        message_length_bits[index] = bit
+        pixel_sample = next(container_samples)
+        message_length_bits[index] = pixel_sample[LSB_INDEX]
 
     # Convert bits into an integer
     logger.debug('message_length_bits: %s', message_length_bits.to01())
@@ -126,9 +127,8 @@ def convert_from_stego_bytes(container_bytes):
     # Read message_length number of bits into our bit array.
     message_bits = bitarray(message_length, endian=ENDIAN)
     for index in range(message_length):
-        pixel_byte = next(container_bytes)
-        bit = (pixel_byte & 0x1)
-        message_bits[index] = bit
+        pixel_sample = next(container_samples)
+        message_bits[index] = pixel_sample[LSB_INDEX]
 
     num_message_bits = message_bits.length()
     logger.debug('The message is %s bits long', num_message_bits)
@@ -139,16 +139,19 @@ def convert_from_stego_bytes(container_bytes):
     return message
 
 
-def _image_to_byte_stream(pixel_data):
-    """A generator that yields each byte within each pixel of an image, in order"""
-    for pixel in pixel_data:
-        for pixel_byte in pixel:
-            yield pixel_byte
+def _image_to_sample_stream(pixel_data):
+    """A generator that yields each byte (as a bitarray) within each pixel of an image, in order"""
+    all_bytes = bytes(chain.from_iterable(pixel_data))
+    all_bits = bitarray(endian=ENDIAN)
+    all_bits.frombytes(all_bytes)
+
+    for index in range(0, all_bits.length(), 8):
+        pixel_bits = all_bits[index:(index + 8)]
+        yield pixel_bits
 
 
-def _grouper(iterable, n, fillvalue=None):
-    """Collect data into fixed-length chunks or blocks
-    grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
-    """
-    args = [iter(iterable)] * n
-    return zip_longest(*args, fillvalue=fillvalue)
+def _samples_to_pixels(sample_stream, n, fillvalue=None):
+    # Need to convert each sample from a bitarray to a single byte
+    samples = [map(lambda x: x.tobytes()[0], iter(sample_stream))] * n
+
+    return zip_longest(*samples, fillvalue=fillvalue)
